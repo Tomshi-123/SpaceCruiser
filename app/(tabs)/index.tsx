@@ -1,98 +1,183 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Image } from "expo-image";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { useThemeColor } from "@/hooks/use-theme-color";
 
-export default function HomeScreen() {
+type SpaceNewsArticle = {
+  id: number;
+  title: string;
+  image_url: string | null;
+};
+
+type SpaceNewsResponse = {
+  results: SpaceNewsArticle[];
+};
+
+const MAX_ARTICLES = 30;
+const ROW_COUNT = 3;
+
+function splitIntoRows(items: SpaceNewsArticle[], rowCount: number) {
+  return Array.from({ length: rowCount }, (_, rowIndex) =>
+    items.filter((_, itemIndex) => itemIndex % rowCount === rowIndex),
+  );
+}
+
+export default function NewsScreen() {
+  const [articles, setArticles] = useState<SpaceNewsArticle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const cardBorder = useThemeColor({}, "icon");
+  const mutedText = useThemeColor({}, "icon");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNews() {
+      try {
+        setHasError(false);
+
+        const response = await fetch(
+          `https://api.spaceflightnewsapi.net/v4/articles/?limit=${MAX_ARTICLES}`,
+        );
+        const data: SpaceNewsResponse = await response.json();
+
+        if (isMounted) {
+          setArticles(data.results ?? []);
+        }
+      } catch {
+        if (isMounted) {
+          setHasError(true);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadNews();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const articleRows = useMemo(
+    () => splitIntoRows(articles, ROW_COUNT),
+    [articles],
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ThemedView style={styles.container}>
+      <ThemedText type="title">SpaceNews</ThemedText>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {isLoading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator />
+          <ThemedText style={{ color: mutedText }}>
+            Laddar nyheter...
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {hasError ? (
+        <View style={styles.centerContent}>
+          <ThemedText style={{ color: mutedText }}>
+            Kunde inte hämta nyheter just nu.
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {!isLoading && !hasError ? (
+        <ScrollView
+          contentContainerStyle={styles.rowsContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {articleRows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.rowBlock}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cardsRow}
+              >
+                {row.map((article) => (
+                  <View
+                    key={article.id}
+                    style={[styles.card, { borderColor: cardBorder }]}
+                  >
+                    {article.image_url ? (
+                      <Image
+                        source={{ uri: article.image_url }}
+                        style={styles.cardImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.cardImage, styles.imagePlaceholder]}>
+                        <ThemedText style={{ color: mutedText }}>
+                          Ingen bild
+                        </ThemedText>
+                      </View>
+                    )}
+                    <ThemedText
+                      numberOfLines={3}
+                      type="defaultSemiBold"
+                      style={styles.cardTitle}
+                    >
+                      {article.title}
+                    </ThemedText>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: {
+    flex: 1,
+    paddingTop: 56,
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  centerContent: {
+    alignItems: "center",
+    gap: 10,
+  },
+  rowsContainer: {
+    gap: 20,
+    paddingBottom: 32,
+  },
+  rowBlock: {
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  cardsRow: {
+    gap: 12,
+    paddingRight: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  card: {
+    width: 220,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+  },
+  cardImage: {
+    width: "100%",
+    height: 130,
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardTitle: {
+    padding: 10,
+    lineHeight: 20,
   },
 });
