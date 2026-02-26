@@ -108,7 +108,11 @@ export default function IssTrackerScreen() {
         style={[styles.mapContainer, { borderColor: mapBorder }]}
         onLayout={handleMapLayout}
       >
-        <Image source={{ uri: WORLD_MAP_URI }} style={styles.mapImage} contentFit="cover" />
+        <Image
+          source={{ uri: WORLD_MAP_URI }}
+          style={styles.mapImage}
+          contentFit="cover"
+        />
 
         {markerPosition ? (
           <View
@@ -121,8 +125,12 @@ export default function IssTrackerScreen() {
             ]}
             pointerEvents="none"
           >
-            <View style={[styles.markerGlow, { backgroundColor: markerColor }]} />
-            <View style={[styles.markerDot, { backgroundColor: markerColor }]} />
+            <View
+              style={[styles.markerGlow, { backgroundColor: markerColor }]}
+            />
+            <View
+              style={[styles.markerDot, { backgroundColor: markerColor }]}
+            />
           </View>
         ) : null}
       </View>
@@ -130,7 +138,9 @@ export default function IssTrackerScreen() {
       {isLoading ? (
         <View style={styles.statusRow}>
           <ActivityIndicator />
-          <ThemedText style={{ color: mutedText }}>Hämtar ISS-position...</ThemedText>
+          <ThemedText style={{ color: mutedText }}>
+            Hämtar ISS-position...
+          </ThemedText>
         </View>
       ) : null}
 
@@ -143,7 +153,8 @@ export default function IssTrackerScreen() {
       {issLocation ? (
         <View style={styles.metaBlock}>
           <ThemedText style={styles.coordsText}>
-            Lat {issLocation.latitude.toFixed(2)}°, Lon {issLocation.longitude.toFixed(2)}°
+            Lat {issLocation.latitude.toFixed(2)}°, Lon{" "}
+            {issLocation.longitude.toFixed(2)}°
           </ThemedText>
           {lastUpdatedText ? (
             <ThemedText style={{ color: mutedText }}>
