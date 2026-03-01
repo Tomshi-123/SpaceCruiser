@@ -6,12 +6,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
+// Typer för nyhetsobjekt från API:et.
 type SpaceNewsArticle = {
   id: number;
   title: string;
   image_url: string | null;
 };
 
+// Typ för det övergripande API-svaret.
 type SpaceNewsResponse = {
   results: SpaceNewsArticle[];
 };
@@ -19,6 +21,7 @@ type SpaceNewsResponse = {
 const MAX_ARTICLES = 30;
 const ROW_COUNT = 3;
 
+// Delar upp artiklarna i flera rader för horisontell scroll per rad.
 function splitIntoRows(items: SpaceNewsArticle[], rowCount: number) {
   return Array.from({ length: rowCount }, (_, rowIndex) =>
     items.filter((_, itemIndex) => itemIndex % rowCount === rowIndex),
@@ -33,6 +36,7 @@ export default function NewsScreen() {
   const cardBorder = useThemeColor({}, "icon");
   const mutedText = useThemeColor({}, "icon");
 
+  // Hämtar senaste rymdnyheterna när skärmen laddas.
   useEffect(() => {
     let isMounted = true;
 
@@ -71,6 +75,7 @@ export default function NewsScreen() {
     [articles],
   );
 
+  // Visar laddning/fel och annars nyhetskort uppdelade i scrollbara rader.
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">SpaceNews</ThemedText>
@@ -140,6 +145,7 @@ export default function NewsScreen() {
   );
 }
 
+// Stilar för layout och kort.
 const styles = StyleSheet.create({
   container: {
     flex: 1,

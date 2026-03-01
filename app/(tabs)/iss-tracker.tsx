@@ -3,14 +3,17 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   LayoutChangeEvent,
+  Platform,
   StyleSheet,
   View,
 } from "react-native";
+import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
 
+// Typ för positionsdata från ISS-API:et.
 type IssLocation = {
   latitude: number;
   longitude: number;
@@ -25,6 +28,7 @@ const REFRESH_MS = 5000;
 const WORLD_MAP_URI =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1920px-World_map_-_low_resolution.svg.png";
 
+// Håller markören inom kartans synliga yta.
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -38,7 +42,9 @@ export default function IssTrackerScreen() {
   const mutedText = useThemeColor({}, "icon");
   const mapBorder = useThemeColor({}, "icon");
   const markerColor = useThemeColor({}, "issMarker");
+  const tintColor = useThemeColor({}, "tint");
 
+  // Hämtar ISS-position direkt och sedan löpande var femte sekund.
   useEffect(() => {
     let isMounted = true;
 
@@ -75,6 +81,7 @@ export default function IssTrackerScreen() {
 
   const hasMap = mapSize.width > 0 && mapSize.height > 0;
 
+  // Räknar ut position för markören på webbkartan.
   const markerPosition =
     hasMap && issLocation
       ? {
@@ -100,39 +107,107 @@ export default function IssTrackerScreen() {
     setMapSize({ width, height });
   }
 
+  // Visar karta, status för ISS.
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">ISS Tracker</ThemedText>
+
+      {issLocation ? (
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { borderColor: mapBorder }]}>
+            <ThemedText style={{ color: mutedText }}>Latitud</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: tintColor }}>
+              {issLocation.latitude.toFixed(4)}°
+            </ThemedText>
+          </View>
+
+          <View style={[styles.statCard, { borderColor: mapBorder }]}>
+            <ThemedText style={{ color: mutedText }}>Longitud</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: tintColor }}>
+              {issLocation.longitude.toFixed(4)}°
+            </ThemedText>
+          </View>
+
+          <View style={[styles.statCard, { borderColor: mapBorder }]}>
+            <ThemedText style={{ color: mutedText }}>Hastighet</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: tintColor }}>
+              {Math.round(issLocation.velocity)} km/h
+            </ThemedText>
+          </View>
+
+          <View style={[styles.statCard, { borderColor: mapBorder }]}>
+            <ThemedText style={{ color: mutedText }}>Höjd</ThemedText>
+            <ThemedText type="defaultSemiBold" style={{ color: tintColor }}>
+              {issLocation.altitude.toFixed(1)} km
+            </ThemedText>
+          </View>
+        </View>
+      ) : null}
 
       <View
         style={[styles.mapContainer, { borderColor: mapBorder }]}
         onLayout={handleMapLayout}
       >
-        <Image
-          source={{ uri: WORLD_MAP_URI }}
-          style={styles.mapImage}
-          contentFit="cover"
-        />
+        {Platform.OS === "web" ? (
+          <>
+            <Image
+              source={{ uri: WORLD_MAP_URI }}
+              style={styles.mapImage}
+              contentFit="cover"
+            />
 
-        {markerPosition ? (
-          <View
-            style={[
-              styles.markerWrapper,
-              {
-                left: markerPosition.left,
-                top: markerPosition.top,
-              },
-            ]}
-            pointerEvents="none"
+            {markerPosition ? (
+              <View
+                style={[
+                  styles.markerWrapper,
+                  {
+                    left: markerPosition.left,
+                    top: markerPosition.top,
+                  },
+                ]}
+                pointerEvents="none"
+              >
+                <View
+                  style={[styles.markerGlow, { backgroundColor: markerColor }]}
+                />
+                <View
+                  style={[styles.markerDot, { backgroundColor: markerColor }]}
+                />
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <MapView
+            style={styles.mapImage}
+            provider={PROVIDER_DEFAULT}
+            initialRegion={{
+              latitude: 20,
+              longitude: 0,
+              latitudeDelta: 120,
+              longitudeDelta: 120,
+            }}
+            zoomEnabled
+            zoomTapEnabled
+            scrollEnabled
+            rotateEnabled
+            pitchEnabled={false}
+            showsCompass={false}
+            showsScale={false}
+            toolbarEnabled={false}
           >
-            <View
-              style={[styles.markerGlow, { backgroundColor: markerColor }]}
-            />
-            <View
-              style={[styles.markerDot, { backgroundColor: markerColor }]}
-            />
-          </View>
-        ) : null}
+            {issLocation ? (
+              <Marker
+                coordinate={{
+                  latitude: issLocation.latitude,
+                  longitude: issLocation.longitude,
+                }}
+                title="ISS"
+                description="Internationella rymdstationen"
+                pinColor={markerColor}
+              />
+            ) : null}
+          </MapView>
+        )}
       </View>
 
       {isLoading ? (
@@ -152,12 +227,12 @@ export default function IssTrackerScreen() {
 
       {issLocation ? (
         <View style={styles.metaBlock}>
-          <ThemedText style={styles.coordsText}>
-            Lat {issLocation.latitude.toFixed(2)}°, Lon{" "}
-            {issLocation.longitude.toFixed(2)}°
+          <ThemedText style={[styles.footerText, { color: mutedText }]}>
+            ISS uppdateras var 5:e sekund • Realtidsdata från Where The ISS At
+            API
           </ThemedText>
           {lastUpdatedText ? (
-            <ThemedText style={{ color: mutedText }}>
+            <ThemedText style={[styles.footerText, { color: mutedText }]}>
               Senast uppdaterad: {lastUpdatedText}
             </ThemedText>
           ) : null}
@@ -167,19 +242,35 @@ export default function IssTrackerScreen() {
   );
 }
 
+// Stilar för layout, kort, karta och statusrader.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 56,
-    paddingHorizontal: 16,
+    paddingTop: 40,
+    paddingHorizontal: 12,
     gap: 14,
+  },
+  statsGrid: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  statCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    width: "48.6%",
+    gap: 2,
   },
   mapContainer: {
     width: "100%",
     borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,
-    aspectRatio: 2,
+    flex: 1,
+    minHeight: 260,
     position: "relative",
   },
   mapImage: {
@@ -209,10 +300,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  coordsText: {
-    fontSize: 14,
-  },
   metaBlock: {
+    alignItems: "center",
     gap: 4,
+    paddingBottom: 6,
+  },
+  footerText: {
+    fontSize: 13,
+    textAlign: "center",
   },
 });
