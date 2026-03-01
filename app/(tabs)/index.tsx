@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -19,14 +19,6 @@ type SpaceNewsResponse = {
 };
 
 const MAX_ARTICLES = 30;
-const ROW_COUNT = 3;
-
-// Delar upp artiklarna i flera rader för horisontell scroll per rad.
-function splitIntoRows(items: SpaceNewsArticle[], rowCount: number) {
-  return Array.from({ length: rowCount }, (_, rowIndex) =>
-    items.filter((_, itemIndex) => itemIndex % rowCount === rowIndex),
-  );
-}
 
 export default function NewsScreen() {
   const [articles, setArticles] = useState<SpaceNewsArticle[]>([]);
@@ -70,12 +62,7 @@ export default function NewsScreen() {
     };
   }, []);
 
-  const articleRows = useMemo(
-    () => splitIntoRows(articles, ROW_COUNT),
-    [articles],
-  );
-
-  // Visar laddning/fel och annars nyhetskort uppdelade i scrollbara rader.
+  // Visar laddning/fel och annars en enkel lista med nyhetskort.
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">SpaceNews</ThemedText>
@@ -98,48 +85,36 @@ export default function NewsScreen() {
       ) : null}
 
       {!isLoading && !hasError ? (
-        <ScrollView
-          contentContainerStyle={styles.rowsContainer}
+        <FlatList
+          data={articles}
+          keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
-        >
-          {articleRows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.rowBlock}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.cardsRow}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => (
+            <View style={[styles.card, { borderColor: cardBorder }]}>
+              {item.image_url ? (
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={styles.cardImage}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.cardImage, styles.imagePlaceholder]}>
+                  <ThemedText style={{ color: mutedText }}>
+                    Ingen bild
+                  </ThemedText>
+                </View>
+              )}
+              <ThemedText
+                numberOfLines={3}
+                type="defaultSemiBold"
+                style={styles.cardTitle}
               >
-                {row.map((article) => (
-                  <View
-                    key={article.id}
-                    style={[styles.card, { borderColor: cardBorder }]}
-                  >
-                    {article.image_url ? (
-                      <Image
-                        source={{ uri: article.image_url }}
-                        style={styles.cardImage}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={[styles.cardImage, styles.imagePlaceholder]}>
-                        <ThemedText style={{ color: mutedText }}>
-                          Ingen bild
-                        </ThemedText>
-                      </View>
-                    )}
-                    <ThemedText
-                      numberOfLines={3}
-                      type="defaultSemiBold"
-                      style={styles.cardTitle}
-                    >
-                      {article.title}
-                    </ThemedText>
-                  </View>
-                ))}
-              </ScrollView>
+                {item.title}
+              </ThemedText>
             </View>
-          ))}
-        </ScrollView>
+          )}
+        />
       ) : null}
     </ThemedView>
   );
@@ -157,19 +132,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  rowsContainer: {
-    gap: 20,
+  listContent: {
+    gap: 14,
     paddingBottom: 32,
   },
-  rowBlock: {
-    gap: 8,
-  },
-  cardsRow: {
-    gap: 12,
-    paddingRight: 16,
-  },
   card: {
-    width: 220,
+    width: "100%",
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
